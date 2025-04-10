@@ -82,14 +82,20 @@ router.get("/grouped-reports", async (req, res) => {
   }
 });
 
-
 router.get("/timeline/public", async (req, res) => {
   try {
-    const snapshot = await db.collection("reports").orderBy("timestamp", "desc").limit(50).get();
-    
+    const snapshot = await db
+      .collection("reports")
+      .orderBy("timestamp", "desc")
+      .limit(50)
+      .get();
+
     const feed = snapshot.docs.map((doc) => {
       const data = doc.data();
-      const time = new Date(data.timestamp).toLocaleTimeString("en-IN", { hour: '2-digit', minute: '2-digit' });
+      const time = new Date(data.timestamp).toLocaleTimeString("en-IN", {
+        hour: "2-digit",
+        minute: "2-digit",
+      });
       let message = "";
 
       if (data.status === "Resolved") {
@@ -110,6 +116,5 @@ router.get("/timeline/public", async (req, res) => {
     res.status(500).json({ error: error.message });
   }
 });
-
 
 export default router;
