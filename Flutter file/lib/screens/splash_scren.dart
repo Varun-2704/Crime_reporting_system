@@ -41,19 +41,15 @@ class _SplashScreenState extends State<SplashScreen> {
 
   @override
   Widget build(BuildContext context) {
-    return const Scaffold(
+    return Scaffold(
       backgroundColor: Colors.black,
       body: Center(
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Image(
-              image: AssetImage('assets/images/logo.png'),
-              width: 120,
-              height: 120,
-            ),
-            SizedBox(height: 20),
-            Text(
+            Image.asset("assets/images/logo.png"),
+            const SizedBox(height: 20),
+            const Text(
               'Crime Reporter',
               style: TextStyle(
                 fontSize: 26,
