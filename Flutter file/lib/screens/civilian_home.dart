@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_apis/screens/corruption_report.dart';
+import 'package:flutter_apis/screens/crime_list_page.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:flutter_apis/screens/role_selector.dart';
 import 'package:flutter_apis/screens/sos_screen.dart'; 
@@ -44,18 +46,26 @@ class CivilianHome extends StatelessWidget {
             }),
 
             _buildOption(context, "Corruption Complaint", Icons.money_off, () {
-              // TODO: Navigate to corruption complaint page
+              Navigator.push(
+                context,
+                MaterialPageRoute(builder: (_) => const CorruptionReportPage()),
+              );
             }),
-            _buildOption(context, "Crime in Local Area", Icons.location_city, () {
-              // TODO: Navigate to local crime page
+
+            _buildOption(context, "See Crime Reports in my city", Icons.location_city, () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(builder: (context) => CityCrimeReportsPage()),
+              );
             }),
+
             _buildOption(context, "Send SOS Signal", Icons.warning_amber, () {
               Navigator.push(
                 context,
                 MaterialPageRoute(builder: (context) => const SOSPage()),
               );
             }),
-            _buildOption(context, "See Crime Reports", Icons.map, () {
+            _buildOption(context, "Crime in my city map", Icons.map, () {
               Navigator.push(
                 context,
                 MaterialPageRoute(builder: (context) => const CrimeReportsPage()),

@@ -1,4 +1,6 @@
 import 'dart:io';
+import 'package:geocoding/geocoding.dart'; // Add this import for reverse geocoding
+
 import 'package:dropdown_search/dropdown_search.dart';
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
@@ -21,6 +23,7 @@ class RegisterComplaintScreen extends StatefulWidget {
 class _RegisterComplaintScreenState extends State<RegisterComplaintScreen> {
   final _formKey = GlobalKey<FormState>();
 
+  String? location;
   String? selectedCrime;
   String? description;
   String? victimName;
@@ -44,6 +47,7 @@ class _RegisterComplaintScreenState extends State<RegisterComplaintScreen> {
     }
   }
 Future<void> _getCurrentLocation(BuildContext context) async {
+  final messenger = ScaffoldMessenger.of(context);
   final status = await Permission.location.request();
 
   if (!mounted) return;
@@ -56,81 +60,90 @@ Future<void> _getCurrentLocation(BuildContext context) async {
 
       if (!mounted) return;
 
-      setState(() {
-        pickedLocation = LatLng(position.latitude, position.longitude);
-      });
-
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text("Location selected: (${position.latitude}, ${position.longitude})"),
-        ),
+      // Reverse geocode to get address
+      List<Placemark> placemarks = await placemarkFromCoordinates(
+        position.latitude,
+        position.longitude,
       );
+
+      if (placemarks.isNotEmpty) {
+        final place = placemarks[0];
+        final address = "${place.street}, ${place.locality}, ${place.administrativeArea}";
+
+        setState(() {
+          pickedLocation = LatLng(position.latitude, position.longitude);
+          String? readableAddress;
+          readableAddress = address; // <- create a new variable to store this
+        });
+
+        messenger.showSnackBar(
+          SnackBar(content: Text("Location selected: $address")),
+        );
+      }
     } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(
+      messenger.showSnackBar(
         const SnackBar(content: Text("Error fetching location")),
       );
     }
   } else {
-    ScaffoldMessenger.of(context).showSnackBar(
+    messenger.showSnackBar(
       const SnackBar(content: Text("Permission denied to access location")),
     );
   }
 }
-
-  Future<void> _submitForm(BuildContext context) async {
-    if (!_formKey.currentState!.validate() || pickedLocation == null) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text("Please fill all required fields and select location")),
-      );
-      return;
-    }
-
-    _formKey.currentState!.save();
-
-    final uri = Uri.parse("https://crimereportingsystem-production.up.railway.app/api/crime/report");
-    final request = http.MultipartRequest('POST', uri);
-
-    request.fields['type'] = selectedCrime!;
-    request.fields['description'] = description!;
-    request.fields['victim_name'] = victimName ?? '';
-    request.fields['suspect_name'] = suspectName ?? '';
-    request.fields['reported_by'] = reporterName!;
-    request.fields['location'] = '${pickedLocation!.latitude},${pickedLocation!.longitude}';
-
-    final now = DateTime.now().toUtc().add(const Duration(hours: 5, minutes: 30));
-    final istTime = DateFormat("yyyy-MM-dd HH:mm:ss").format(now);
-    request.fields['timestamp'] = istTime;
-
-    if (mediaFile != null) {
-      final mimeTypeData = lookupMimeType(mediaFile!.path)!.split('/');
-      request.files.add(
-        await http.MultipartFile.fromPath(
-          'media',
-          mediaFile!.path,
-          contentType: MediaType(mimeTypeData[0], mimeTypeData[1]),
-          filename: basename(mediaFile!.path),
-        ),
-      );
-    }
-
-    final response = await request.send();
-    if (response.statusCode == 200) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text("Complaint registered successfully 🎉")),
-      );
-      _formKey.currentState!.reset();
-      setState(() {
-        pickedLocation = null;
-        mediaFile = null;
-        selectedCrime = null;
-      });
-    } else {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text("Failed to register complaint ❌")),
-      );
-    }
+Future<void> _submitForm(BuildContext context) async {
+  if (!_formKey.currentState!.validate()) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(content: Text("Please fill all required fields")),
+    );
+    return;
   }
 
+  _formKey.currentState!.save();
+
+  final uri = Uri.parse("https://crimereportingsystem-production.up.railway.app/api/crime/report");
+  final request = http.MultipartRequest('POST', uri);
+
+  request.fields['type'] = selectedCrime!;
+  request.fields['description'] = description!;
+  request.fields['victim_name'] = victimName ?? '';
+  request.fields['suspect_name'] = suspectName ?? '';
+  request.fields['reportedBy'] = reporterName!;
+  request.fields['location'] = location!;
+
+  final now = DateTime.now().toUtc().add(const Duration(hours: 5, minutes: 30));
+  final istTime = DateFormat("yyyy-MM-dd HH:mm:ss").format(now);
+  request.fields['timestamp'] = istTime;
+
+  if (mediaFile != null) {
+    final mimeTypeData = lookupMimeType(mediaFile!.path)!.split('/');
+    request.files.add(
+      await http.MultipartFile.fromPath(
+        'media',
+        mediaFile!.path,
+        contentType: MediaType(mimeTypeData[0], mimeTypeData[1]),
+        filename: basename(mediaFile!.path),
+      ),
+    );
+  }
+
+  final response = await request.send();
+  if (response.statusCode == 200 || response.statusCode == 201) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(content: Text("Complaint registered successfully 🎉")),
+    );
+    _formKey.currentState!.reset();
+    setState(() {
+      pickedLocation = null;
+      mediaFile = null;
+      selectedCrime = null;
+    });
+  } else {
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(content: Text("Failed to register complaint ❌")),
+    );
+  }
+}
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -178,17 +191,12 @@ Future<void> _getCurrentLocation(BuildContext context) async {
                   onSaved: (value) => reporterName = value,
                 ),
                 const SizedBox(height: 16),
-                Row(
-                  children: [
-                    ElevatedButton.icon(
-                      onPressed: () => _getCurrentLocation(context),
-                      icon: const Icon(Icons.location_pin),
-                      label: const Text("Select Location"),
-                    ),
-                    const SizedBox(width: 10),
-                    if (pickedLocation != null) const Text("📍 Location Selected"),
-                  ],
+                TextFormField(
+                decoration: InputDecoration(labelText: 'Location'),
+                validator: (value) => value == null || value.isEmpty ? 'Location is required' : null,
+                onSaved: (value) => location = value!,
                 ),
+
                 const SizedBox(height: 12),
                 Row(
                   children: [

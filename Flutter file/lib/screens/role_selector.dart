@@ -1,5 +1,6 @@
 // lib/screens/role_selection.dart
 import 'package:flutter/material.dart';
+import 'package:flutter_apis/screens/police_login.dart';
 import 'package:flutter_apis/signupin.dart';
 
 class RoleSelectionScreen extends StatelessWidget {
@@ -30,7 +31,12 @@ class RoleSelectionScreen extends StatelessWidget {
               ),
               const SizedBox(height: 32),
               ElevatedButton.icon(
-                onPressed: () => navigateToAuth(context, 'police'),
+              onPressed: () {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(builder: (context) => const PoliceLoginScreen()),
+                );
+              },
                 icon: const Icon(Icons.local_police),
                 label: const Text('Police'),
                 style: ElevatedButton.styleFrom(
