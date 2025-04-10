@@ -7,7 +7,7 @@ import fs from "fs";
 
 const router = express.Router();
 
-const uploadDir = "./uploads/user";
+const uploadDir = "./uploads/govtId";
 if (!fs.existsSync(uploadDir)) {
   fs.mkdirSync(uploadDir);
 }
@@ -82,11 +82,11 @@ router.post("/login", async (req, res) => {
     const isMatch = await bcrypt.compare(password, userData.password);
     if (!isMatch) return res.status(401).json({ error: "Invalid password" });
 
-        const token = jwt.sign(
-        { id: userDoc.id, email: userData.email, role: userData.role },
-        "mySecretKey",
-        { expiresIn: "1h" }
-        );
+    const token = jwt.sign(
+      { id: userDoc.id, email: userData.email, role: userData.role },
+      "mySecretKey",
+      { expiresIn: "1h" }
+    );
 
     res.status(200).json({ message: "Login successful", token });
   } catch (error) {
