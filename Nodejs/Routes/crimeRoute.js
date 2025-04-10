@@ -49,28 +49,6 @@ router.post("/report", upload.single("media"), async (req, res) => {
   } catch (error) {
     res.status(400).json({ error: error.message });
   }
-});
-
-// router.get("/reports", async (req, res) => {
-//   try {
-//     const snapshot = await db.collection("reports").get();
-//     const reports = snapshot.docs.map((doc) => ({ id: doc.id, ...doc.data() }));
-//     res.status(200).json(reports);
-//   } catch (error) {
-//     res.status(500).json({ error: error.message });
-//   }
-// });
-
-// router.patch("/report/:id/status", async (req, res) => {
-//   const { id } = req.params;
-//   const { status } = req.body;
-
-//   try {
-//     await db.collection("reports").doc(id).update({ status });
-//     res.status(200).json({ message: "Status updated" });
-//   } catch (error) {
-//     res.status(400).json({ error: error.message });
-//   }
-// });
+}); 
 
 export default router;

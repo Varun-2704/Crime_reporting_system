@@ -2,6 +2,8 @@ import express from "express";
 import dotenv from "dotenv";
 import adminRoutes from "./Routes/adminRoute.js";
 import crimeRoutes from "./Routes/crimeRoute.js";
+import analyticsRoute from "./Routes/analyticsRoute.js";
+import corruptionRoute from "./Routes/corruptionRoute.js";
 
 const app = express();
 
@@ -13,6 +15,8 @@ app.use(express.json());
 app.use("/api/admin", adminRoutes);
 app.use("/api/crime", crimeRoutes);
 app.use("/uploads", express.static("uploads"));
+app.use("/api/analytics", analyticsRoute);
+app.use("/api/corruption", corruptionRoute);
 
 app.get("/", (req, res) => {
   res.send("Crime Reporting System backend is up and running!");
