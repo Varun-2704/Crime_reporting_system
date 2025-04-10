@@ -24,7 +24,7 @@ const upload = multer({ storage });
 
 router.post("/report", upload.single("media"), async (req, res) => {
   try {
-    const { type, description, location, reportedBy } = req.body;
+    const { type, description, location, reportedBy, victimName } = req.body;
 
     if (!type || !description || !location || !reportedBy) {
       return res.status(400).json({ error: "All fields are required" });
@@ -41,6 +41,9 @@ router.post("/report", upload.single("media"), async (req, res) => {
       timestamp: new Date(),
       status: "Pending",
     };
+    if (victimName && victimName.trim() !== "") {
+      newReport.victimName = victimName.trim();
+    }
 
     await db.collection("reports").add(newReport);
     res
@@ -49,6 +52,6 @@ router.post("/report", upload.single("media"), async (req, res) => {
   } catch (error) {
     res.status(400).json({ error: error.message });
   }
-}); 
+});
 
 export default router;
