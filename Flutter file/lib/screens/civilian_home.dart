@@ -1,8 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:flutter_apis/screens/role_selector.dart';
-import 'package:flutter_apis/screens/sos_screen.dart'; // You'll create this
-import 'package:flutter_apis/screens/crime_reports.dart'; // You'll create this
+import 'package:flutter_apis/screens/sos_screen.dart'; 
+import 'package:flutter_apis/screens/register_complaint.dart';
+import 'package:flutter_apis/screens/crime_reports.dart'; 
 
 class CivilianHome extends StatelessWidget {
   const CivilianHome({super.key});
@@ -37,8 +38,11 @@ class CivilianHome extends StatelessWidget {
           mainAxisSpacing: 12,
           children: [
             _buildOption(context, "Register Complaint", Icons.report, () {
-              // TODO: Navigate to register complaint page
+            Navigator.push(context,
+              MaterialPageRoute(builder: (context) => const RegisterComplaintScreen()),
+            );
             }),
+
             _buildOption(context, "Corruption Complaint", Icons.money_off, () {
               // TODO: Navigate to corruption complaint page
             }),

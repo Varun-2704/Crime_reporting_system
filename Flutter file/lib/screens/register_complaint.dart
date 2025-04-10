@@ -1,7 +1,15 @@
 import 'dart:io';
+import 'package:dropdown_search/dropdown_search.dart';
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
-import 'package:dropdown_search/dropdown_search.dart';
+import 'package:intl/intl.dart';
+import 'package:permission_handler/permission_handler.dart';
+import 'package:geolocator/geolocator.dart';
+import 'package:google_maps_flutter/google_maps_flutter.dart';
+import 'package:http/http.dart' as http;
+import 'package:mime/mime.dart';
+import 'package:http_parser/http_parser.dart';
+import 'package:path/path.dart';
 
 class RegisterComplaintScreen extends StatefulWidget {
   const RegisterComplaintScreen({super.key});
@@ -12,33 +20,113 @@ class RegisterComplaintScreen extends StatefulWidget {
 
 class _RegisterComplaintScreenState extends State<RegisterComplaintScreen> {
   final _formKey = GlobalKey<FormState>();
-  String victimName = '';
+
   String? selectedCrime;
+  String? description;
+  String? victimName;
   String? suspectName;
-  File? mediaProof;
+  String? reporterName;
+  File? mediaFile;
+  LatLng? pickedLocation;
 
   final List<String> crimeTypes = [
     'Theft', 'Assault', 'Murder', 'Kidnapping', 'Cyber Crime',
     'Domestic Violence', 'Drug Abuse', 'Vandalism', 'Bribery'
   ];
 
-  Future<void> _pickImage() async {
+  Future<void> _pickMedia() async {
     final picker = ImagePicker();
-    final pickedImage = await picker.pickImage(source: ImageSource.gallery);
-
-    if (pickedImage != null) {
+    final picked = await picker.pickImage(source: ImageSource.gallery); // or ImageSource.camera
+    if (picked != null) {
       setState(() {
-        mediaProof = File(pickedImage.path);
+        mediaFile = File(picked.path);
       });
     }
   }
+Future<void> _getCurrentLocation(BuildContext context) async {
+  final status = await Permission.location.request();
 
-  void _submitForm() {
-    if (_formKey.currentState!.validate()) {
-      _formKey.currentState!.save();
-      // TODO: Send data to Firebase
+  if (!mounted) return;
+
+  if (status.isGranted) {
+    try {
+      final position = await Geolocator.getCurrentPosition(
+        desiredAccuracy: LocationAccuracy.high,
+      );
+
+      if (!mounted) return;
+
+      setState(() {
+        pickedLocation = LatLng(position.latitude, position.longitude);
+      });
+
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text("Complaint Registered")),
+        SnackBar(
+          content: Text("Location selected: (${position.latitude}, ${position.longitude})"),
+        ),
+      );
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text("Error fetching location")),
+      );
+    }
+  } else {
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(content: Text("Permission denied to access location")),
+    );
+  }
+}
+
+  Future<void> _submitForm(BuildContext context) async {
+    if (!_formKey.currentState!.validate() || pickedLocation == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text("Please fill all required fields and select location")),
+      );
+      return;
+    }
+
+    _formKey.currentState!.save();
+
+    final uri = Uri.parse("https://crimereportingsystem-production.up.railway.app/api/crime/report");
+    final request = http.MultipartRequest('POST', uri);
+
+    request.fields['type'] = selectedCrime!;
+    request.fields['description'] = description!;
+    request.fields['victim_name'] = victimName ?? '';
+    request.fields['suspect_name'] = suspectName ?? '';
+    request.fields['reported_by'] = reporterName!;
+    request.fields['location'] = '${pickedLocation!.latitude},${pickedLocation!.longitude}';
+
+    final now = DateTime.now().toUtc().add(const Duration(hours: 5, minutes: 30));
+    final istTime = DateFormat("yyyy-MM-dd HH:mm:ss").format(now);
+    request.fields['timestamp'] = istTime;
+
+    if (mediaFile != null) {
+      final mimeTypeData = lookupMimeType(mediaFile!.path)!.split('/');
+      request.files.add(
+        await http.MultipartFile.fromPath(
+          'media',
+          mediaFile!.path,
+          contentType: MediaType(mimeTypeData[0], mimeTypeData[1]),
+          filename: basename(mediaFile!.path),
+        ),
+      );
+    }
+
+    final response = await request.send();
+    if (response.statusCode == 200) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text("Complaint registered successfully 🎉")),
+      );
+      _formKey.currentState!.reset();
+      setState(() {
+        pickedLocation = null;
+        mediaFile = null;
+        selectedCrime = null;
+      });
+    } else {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text("Failed to register complaint ❌")),
       );
     }
   }
@@ -47,53 +135,79 @@ class _RegisterComplaintScreenState extends State<RegisterComplaintScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(title: const Text("Register Complaint")),
-      body: SingleChildScrollView(
-        padding: const EdgeInsets.all(16.0),
-        child: Form(
-          key: _formKey,
-          child: Column(
-            children: [
-              TextFormField(
-                decoration: const InputDecoration(labelText: "Victim's Name"),
-                onSaved: (value) => victimName = value!,
-                validator: (value) =>
-                    value!.isEmpty ? "Please enter victim's name" : null,
-              ),
-              const SizedBox(height: 12),
-              DropdownSearch<String>(
-                items: crimeTypes,
-                popupProps: const PopupProps.menu(showSearchBox: true),
-                dropdownDecoratorProps: const DropDownDecoratorProps(
-                  dropdownSearchDecoration: InputDecoration(labelText: "Type of Crime"),
-                ),
-                onChanged: (value) => selectedCrime = value,
-                selectedItem: selectedCrime,
-                validator: (value) =>
-                    value == null ? "Please select a crime type" : null,
-              ),
-              const SizedBox(height: 12),
-              TextFormField(
-                decoration: const InputDecoration(labelText: "Suspect's Name (optional)"),
-                onSaved: (value) => suspectName = value,
-              ),
-              const SizedBox(height: 16),
-              Row(
-                children: [
-                  ElevatedButton.icon(
-                    onPressed: _pickImage,
-                    icon: const Icon(Icons.upload_file),
-                    label: const Text("Upload Media"),
+      body: Builder(
+        builder: (scaffoldContext) => SingleChildScrollView(
+          padding: const EdgeInsets.all(16.0),
+          child: Form(
+            key: _formKey,
+            child: Column(
+              children: [
+                DropdownSearch<String>(
+                  items: crimeTypes,
+                  popupProps: const PopupProps.menu(showSearchBox: true),
+                  dropdownDecoratorProps: const DropDownDecoratorProps(
+                    dropdownSearchDecoration: InputDecoration(labelText: "Type of Crime *"),
                   ),
-                  const SizedBox(width: 10),
-                  if (mediaProof != null) const Text("File selected ✅")
-                ],
-              ),
-              const SizedBox(height: 24),
-              ElevatedButton(
-                onPressed: _submitForm,
-                child: const Text("Submit Complaint"),
-              ),
-            ],
+                  onChanged: (value) => setState(() => selectedCrime = value),
+                  selectedItem: selectedCrime,
+                  validator: (value) => value == null ? "Please select a crime type" : null,
+                ),
+                const SizedBox(height: 12),
+                TextFormField(
+                  decoration: const InputDecoration(labelText: "Description *"),
+                  maxLines: 3,
+                  validator: (value) =>
+                      value == null || value.isEmpty ? "Please enter description" : null,
+                  onSaved: (value) => description = value,
+                ),
+                const SizedBox(height: 12),
+                TextFormField(
+                  decoration: const InputDecoration(labelText: "Victim's Name (Optional)"),
+                  onSaved: (value) => victimName = value,
+                ),
+                const SizedBox(height: 12),
+                TextFormField(
+                  decoration: const InputDecoration(labelText: "Suspect's Name (Optional)"),
+                  onSaved: (value) => suspectName = value,
+                ),
+                const SizedBox(height: 12),
+                TextFormField(
+                  decoration: const InputDecoration(labelText: "Reported By (Your Name) *"),
+                  validator: (value) =>
+                      value == null || value.isEmpty ? "Please enter your name" : null,
+                  onSaved: (value) => reporterName = value,
+                ),
+                const SizedBox(height: 16),
+                Row(
+                  children: [
+                    ElevatedButton.icon(
+                      onPressed: () => _getCurrentLocation(context),
+                      icon: const Icon(Icons.location_pin),
+                      label: const Text("Select Location"),
+                    ),
+                    const SizedBox(width: 10),
+                    if (pickedLocation != null) const Text("📍 Location Selected"),
+                  ],
+                ),
+                const SizedBox(height: 12),
+                Row(
+                  children: [
+                    ElevatedButton.icon(
+                      onPressed: _pickMedia,
+                      icon: const Icon(Icons.upload_file),
+                      label: const Text("Upload Media"),
+                    ),
+                    const SizedBox(width: 10),
+                    if (mediaFile != null) const Text("File selected ✅"),
+                  ],
+                ),
+                const SizedBox(height: 24),
+                ElevatedButton(
+                  onPressed: () => _submitForm(scaffoldContext),
+                  child: const Text("Submit Complaint"),
+                ),
+              ],
+            ),
           ),
         ),
       ),

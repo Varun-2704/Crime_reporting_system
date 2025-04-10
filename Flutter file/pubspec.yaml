@@ -8,8 +8,15 @@ environment:
   sdk: ^3.5.3
 
 dependencies:
-  shared_preferences: ^2.2.2  # or latest version
+  permission_handler: ^11.0.1
+  location: ^5.0.3
   dropdown_search: ^5.0.6
+  http: ^0.13.6
+  google_maps_flutter: ^2.5.0
+  geolocator: ^10.1.0
+  intl: ^0.18.1
+  path_provider: ^2.1.1
+  shared_preferences: ^2.2.2  # or latest version
   image_picker: ^1.0.4
 
   flutter:

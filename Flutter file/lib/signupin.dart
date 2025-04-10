@@ -48,9 +48,10 @@ class _MyHomePageState extends State<MyHomePage> {
           );
         }
       } catch (e) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Error: $e')),
-        );
+        if (!mounted) return; // Prevent calling context if widget is no longer in tree
+      ScaffoldMessenger.of(context).showSnackBar( 
+  const SnackBar(content: Text("Complaint Registered")),
+);
       }
     }
   }
