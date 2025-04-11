@@ -6,7 +6,14 @@ import 'package:flutter_apis/signupin.dart';
 class RoleSelectionScreen extends StatelessWidget {
   const RoleSelectionScreen({super.key});
 
-  void navigateToAuth(BuildContext context, String role) {
+  
+void navigateToAuth(BuildContext context, String role) {
+  if (role == 'police') {
+    Navigator.push(
+      context,
+      MaterialPageRoute(builder: (context) => const PoliceLoginScreen()),
+    );
+  } else {
     Navigator.push(
       context,
       MaterialPageRoute(
@@ -14,6 +21,7 @@ class RoleSelectionScreen extends StatelessWidget {
       ),
     );
   }
+}
 
   @override
   Widget build(BuildContext context) {

@@ -1,13 +1,13 @@
 import 'dart:io';
-import 'package:geocoding/geocoding.dart'; // Add this import for reverse geocoding
-
 import 'package:dropdown_search/dropdown_search.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_apis/screens/mapper.dart';
+import 'package:flutter_map/flutter_map.dart';
+import 'package:geocoding/geocoding.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:intl/intl.dart';
+import 'package:latlong2/latlong.dart';
 import 'package:permission_handler/permission_handler.dart';
-import 'package:geolocator/geolocator.dart';
-import 'package:google_maps_flutter/google_maps_flutter.dart';
 import 'package:http/http.dart' as http;
 import 'package:mime/mime.dart';
 import 'package:http_parser/http_parser.dart';
@@ -23,127 +23,105 @@ class RegisterComplaintScreen extends StatefulWidget {
 class _RegisterComplaintScreenState extends State<RegisterComplaintScreen> {
   final _formKey = GlobalKey<FormState>();
 
-  String? location;
-  String? selectedCrime;
-  String? description;
-  String? victimName;
-  String? suspectName;
-  String? reporterName;
+  String? selectedCrime, description, victimName, suspectName, reporterName, location;
   File? mediaFile;
   LatLng? pickedLocation;
+  final TextEditingController locationController = TextEditingController();
+
 
   final List<String> crimeTypes = [
     'Theft', 'Assault', 'Murder', 'Kidnapping', 'Cyber Crime',
-    'Domestic Violence', 'Drug Abuse', 'Vandalism', 'Bribery'
+    'Domestic Violence', 'Drug Abuse', 'Vandalism'
   ];
 
   Future<void> _pickMedia() async {
     final picker = ImagePicker();
-    final picked = await picker.pickImage(source: ImageSource.gallery); // or ImageSource.camera
+    final picked = await picker.pickImage(source: ImageSource.gallery);
     if (picked != null) {
-      setState(() {
-        mediaFile = File(picked.path);
-      });
+      setState(() => mediaFile = File(picked.path));
     }
   }
-Future<void> _getCurrentLocation(BuildContext context) async {
-  final messenger = ScaffoldMessenger.of(context);
-  final status = await Permission.location.request();
 
-  if (!mounted) return;
+Future<void> _openMapPicker(BuildContext context) async {
+  final LatLng? result = await showDialog(
+    context: context,
+    builder: (context) => MapPickerDialog(initialLocation: pickedLocation),
+  );
 
-  if (status.isGranted) {
-    try {
-      final position = await Geolocator.getCurrentPosition(
-        desiredAccuracy: LocationAccuracy.high,
-      );
+  if (result != null) {
+    setState(() => pickedLocation = result);
 
-      if (!mounted) return;
+    final coords = "${result.latitude},${result.longitude}";
+    location = coords;
+    locationController.text = coords;
 
-      // Reverse geocode to get address
-      List<Placemark> placemarks = await placemarkFromCoordinates(
-        position.latitude,
-        position.longitude,
-      );
-
-      if (placemarks.isNotEmpty) {
-        final place = placemarks[0];
-        final address = "${place.street}, ${place.locality}, ${place.administrativeArea}";
-
-        setState(() {
-          pickedLocation = LatLng(position.latitude, position.longitude);
-          String? readableAddress;
-          readableAddress = address; // <- create a new variable to store this
-        });
-
-        messenger.showSnackBar(
-          SnackBar(content: Text("Location selected: $address")),
-        );
-      }
-    } catch (e) {
-      messenger.showSnackBar(
-        const SnackBar(content: Text("Error fetching location")),
-      );
-    }
-  } else {
-    messenger.showSnackBar(
-      const SnackBar(content: Text("Permission denied to access location")),
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text("Location selected: $coords")),
     );
   }
 }
-Future<void> _submitForm(BuildContext context) async {
-  if (!_formKey.currentState!.validate()) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text("Please fill all required fields")),
-    );
-    return;
-  }
 
-  _formKey.currentState!.save();
 
-  final uri = Uri.parse("https://crimereportingsystem-production.up.railway.app/api/crime/report");
-  final request = http.MultipartRequest('POST', uri);
+  Future<void> _submitForm(BuildContext context) async {
+    if (!_formKey.currentState!.validate()) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text("Please fill all required fields")),
+      );
+      return;
+    }
 
-  request.fields['type'] = selectedCrime!;
-  request.fields['description'] = description!;
-  request.fields['victim_name'] = victimName ?? '';
-  request.fields['suspect_name'] = suspectName ?? '';
-  request.fields['reportedBy'] = reporterName!;
-  request.fields['location'] = location!;
+    _formKey.currentState!.save();
 
-  final now = DateTime.now().toUtc().add(const Duration(hours: 5, minutes: 30));
-  final istTime = DateFormat("yyyy-MM-dd HH:mm:ss").format(now);
-  request.fields['timestamp'] = istTime;
+    final uri = Uri.parse("https://crimereportingsystem-production.up.railway.app/api/crime/report");
+    final request = http.MultipartRequest('POST', uri);
 
-  if (mediaFile != null) {
-    final mimeTypeData = lookupMimeType(mediaFile!.path)!.split('/');
-    request.files.add(
-      await http.MultipartFile.fromPath(
+    request.fields['type'] = selectedCrime!;
+    request.fields['description'] = description!;
+    request.fields['victim_name'] = victimName ?? '';
+    request.fields['suspect_name'] = suspectName ?? '';
+    request.fields['reportedBy'] = reporterName!;
+if (pickedLocation != null) {
+  request.fields['location'] = "${pickedLocation!.latitude},${pickedLocation!.longitude}";
+} else {
+  ScaffoldMessenger.of(context).showSnackBar(
+    const SnackBar(content: Text("Please select a location from the map")),
+  );
+  return;
+}
+
+    final now = DateTime.now().toUtc().add(const Duration(hours: 5, minutes: 30));
+    final istTime = DateFormat("yyyy-MM-dd HH:mm:ss").format(now);
+    request.fields['timestamp'] = istTime;
+
+    if (mediaFile != null) {
+      final mimeTypeData = lookupMimeType(mediaFile!.path)!.split('/');
+      request.files.add(await http.MultipartFile.fromPath(
         'media',
         mediaFile!.path,
         contentType: MediaType(mimeTypeData[0], mimeTypeData[1]),
         filename: basename(mediaFile!.path),
-      ),
-    );
+      ));
+    }
+
+    final response = await request.send();
+    if (response.statusCode == 200 || response.statusCode == 201) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text("Complaint registered successfully 🎉")),
+      );
+      _formKey.currentState!.reset();
+      setState(() {
+        pickedLocation = null;
+        mediaFile = null;
+        selectedCrime = null;
+        location = null;
+      });
+    } else {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text("Failed to register complaint ❌")),
+      );
+    }
   }
 
-  final response = await request.send();
-  if (response.statusCode == 200 || response.statusCode == 201) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text("Complaint registered successfully 🎉")),
-    );
-    _formKey.currentState!.reset();
-    setState(() {
-      pickedLocation = null;
-      mediaFile = null;
-      selectedCrime = null;
-    });
-  } else {
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text("Failed to register complaint ❌")),
-    );
-  }
-}
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -169,8 +147,7 @@ Future<void> _submitForm(BuildContext context) async {
                 TextFormField(
                   decoration: const InputDecoration(labelText: "Description *"),
                   maxLines: 3,
-                  validator: (value) =>
-                      value == null || value.isEmpty ? "Please enter description" : null,
+                  validator: (value) => value == null || value.isEmpty ? "Please enter description" : null,
                   onSaved: (value) => description = value,
                 ),
                 const SizedBox(height: 12),
@@ -186,17 +163,35 @@ Future<void> _submitForm(BuildContext context) async {
                 const SizedBox(height: 12),
                 TextFormField(
                   decoration: const InputDecoration(labelText: "Reported By (Your Name) *"),
-                  validator: (value) =>
-                      value == null || value.isEmpty ? "Please enter your name" : null,
+                  validator: (value) => value == null || value.isEmpty ? "Please enter your name" : null,
                   onSaved: (value) => reporterName = value,
                 ),
                 const SizedBox(height: 16),
-                TextFormField(
-                decoration: InputDecoration(labelText: 'Location'),
-                validator: (value) => value == null || value.isEmpty ? 'Location is required' : null,
-                onSaved: (value) => location = value!,
-                ),
+                Row(
+                  children: [
+                    Expanded(
+                      child: TextFormField(
+  controller: locationController,
+  readOnly: true,
+  decoration: InputDecoration(
+    labelText: 'Location (Tap map to select)',
+    suffixIcon: IconButton(
+      icon: const Icon(Icons.map),
+      onPressed: () => _openMapPicker(context),
+    ),
+  ),
+  validator: (value) =>
+      value == null || value.isEmpty ? 'Location is required' : null,
+  onSaved: (value) => location = value!,
+),
 
+                    ),
+                    ElevatedButton(
+                      onPressed: () => _openMapPicker(context),
+                      child: const Text("Select Location on Map"),
+                    ),
+                  ],
+                ),
                 const SizedBox(height: 12),
                 Row(
                   children: [

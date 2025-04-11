@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_apis/screens/corruption_report.dart';
+import 'package:flutter_apis/screens/crime_heatmap_screen.dart';
 import 'package:flutter_apis/screens/crime_list_page.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:flutter_apis/screens/role_selector.dart';
@@ -66,11 +67,12 @@ class CivilianHome extends StatelessWidget {
               );
             }),
             _buildOption(context, "Crime in my city map", Icons.map, () {
-              Navigator.push(
-                context,
-                MaterialPageRoute(builder: (context) => const CrimeReportsPage()),
-              );
-            }),
+  Navigator.push(
+    context,
+    MaterialPageRoute(builder: (_) => const CrimeHeatMapScreen()),
+  );
+}),
+
           ],
         ),
       ),
