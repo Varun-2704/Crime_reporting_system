@@ -92,7 +92,7 @@ class MyApp extends StatelessWidget {
         '/civilian_home': (context) => const CivilianHome(),
         '/police_home': (context) => const PoliceHome(),
         '/registerComplaint': (context) => const RegisterComplaintScreen(),
-        '/cityReports': (context) => CityReportsScreen(city: '', location: '',), // default, actual value passed via Navigator
+        '/cityReports': (context) => CityReportsScreen(), // default, actual value passed via Navigator
 
       },
     );

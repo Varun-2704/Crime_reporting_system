@@ -3,9 +3,7 @@ import 'package:http/http.dart' as http;
 import 'dart:convert';
 
 class CityReportsScreen extends StatefulWidget {
-  final String location;
-
-  const CityReportsScreen({super.key, required this.location, required String city});
+  const CityReportsScreen({super.key});
 
   @override
   State<CityReportsScreen> createState() => _CityReportsScreenState();
@@ -13,6 +11,7 @@ class CityReportsScreen extends StatefulWidget {
 
 class _CityReportsScreenState extends State<CityReportsScreen> {
   List<dynamic> reports = [];
+  String statusFilter = 'All';
   bool isLoading = true;
 
   @override
@@ -26,13 +25,10 @@ class _CityReportsScreenState extends State<CityReportsScreen> {
     try {
       final response = await http.get(url);
       if (response.statusCode == 200) {
-        final List<dynamic> allReports = json.decode(response.body);
-        final filtered = allReports.where((r) {
-          return (r['location'] as String?)?.toLowerCase().contains(widget.location.toLowerCase()) ?? false;
-        }).toList();
-
+        final decoded = json.decode(response.body);
+        final List<dynamic> allReports = decoded['data'];
         setState(() {
-          reports = filtered;
+          reports = allReports;
           isLoading = false;
         });
       } else {
@@ -48,26 +44,79 @@ class _CityReportsScreenState extends State<CityReportsScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final filteredReports = reports.where((report) {
+      if (statusFilter == 'All') return true;
+      return (report['status'] ?? '').toLowerCase() == statusFilter.toLowerCase();
+    }).toList();
+
     return Scaffold(
-      appBar: AppBar(title: Text("Reports in ${widget.location}")),
+      appBar: AppBar(title: Text("All Crime Reports")),
       body: isLoading
           ? const Center(child: CircularProgressIndicator())
-          : reports.isEmpty
-              ? const Center(child: Text("No reports found."))
-              : ListView.builder(
-                  itemCount: reports.length,
-                  itemBuilder: (context, index) {
-                    final report = reports[index];
-                    return Card(
-                      margin: const EdgeInsets.all(8),
-                      child: ListTile(
-                        title: Text(report['crimeType'] ?? "Unknown Crime"),
-                        subtitle: Text(report['description'] ?? "No description"),
-                        trailing: Text(report['status'] ?? "Pending"),
-                      ),
-                    );
-                  },
+          : Column(
+              children: [
+                Padding(
+                  padding: const EdgeInsets.all(10),
+                  child: DropdownButtonFormField<String>(
+                    decoration: InputDecoration(
+                      labelText: 'Filter by Status',
+                      border: OutlineInputBorder(),
+                      prefixIcon: Icon(Icons.filter_alt),
+                    ),
+                    value: statusFilter,
+                    onChanged: (value) {
+                      setState(() {
+                        statusFilter = value!;
+                      });
+                    },
+                    items: ['All', 'Pending', 'Closed', 'Investigating']
+                        .map((status) => DropdownMenuItem(
+                              value: status,
+                              child: Text(status),
+                            ))
+                        .toList(),
+                  ),
                 ),
+                Expanded(
+                  child: filteredReports.isEmpty
+                      ? const Center(child: Text("No reports found."))
+                      : ListView.builder(
+                          itemCount: filteredReports.length,
+                          itemBuilder: (context, index) {
+                            final report = filteredReports[index];
+                            final location = report['location'] is String
+                                ? report['location']
+                                : (report['location']?['address'] ?? report['location'].toString());
+
+                            return Card(
+                              margin: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                              child: ListTile(
+                                title: Text(report['crimeType'] ?? "Unknown Crime"),
+                                subtitle: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Text(report['description'] ?? "No description"),
+                                    SizedBox(height: 4),
+                                    Text("Location: $location"),
+                                  ],
+                                ),
+                                trailing: Text(
+                                  report['status'] ?? "Pending",
+                                  style: TextStyle(
+                                    color: (report['status'] ?? '').toLowerCase() == 'resolved'
+                                        ? Colors.green
+                                        : (report['status'] ?? '').toLowerCase() == 'investigating'
+                                            ? Colors.orange
+                                            : Colors.red,
+                                  ),
+                                ),
+                              ),
+                            );
+                          },
+                        ),
+                ),
+              ],
+            ),
     );
   }
 }

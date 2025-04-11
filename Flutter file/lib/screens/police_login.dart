@@ -45,7 +45,7 @@ class _PoliceLoginScreenState extends State<PoliceLoginScreen> {
                     context,
                     MaterialPageRoute(
                       builder: (context) =>
-                          CityReportsScreen(city: city, location: city),
+                          CityReportsScreen(),
                     ),
                   );
                 } else {
