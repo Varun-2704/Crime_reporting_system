@@ -2,6 +2,7 @@
 
 import 'package:flutter/material.dart';
 import 'package:flutter_apis/screens/city_reports_screen.dart';
+import 'package:flutter_apis/screens/crime_list_page.dart';
 
 class PoliceLoginScreen extends StatefulWidget {
   const PoliceLoginScreen({super.key});
@@ -13,7 +14,6 @@ class PoliceLoginScreen extends StatefulWidget {
 class _PoliceLoginScreenState extends State<PoliceLoginScreen> {
   final TextEditingController _stationIdController = TextEditingController();
   final TextEditingController _passwordController = TextEditingController();
-  final TextEditingController _locationController = TextEditingController();
 
   @override
   Widget build(BuildContext context) {
@@ -32,27 +32,15 @@ class _PoliceLoginScreenState extends State<PoliceLoginScreen> {
               obscureText: true,
               decoration: const InputDecoration(labelText: "Password"),
             ),
-            TextField(
-              controller: _locationController,
-              decoration: const InputDecoration(labelText: "Location"),
-            ),
             const SizedBox(height: 20),
             ElevatedButton(
               onPressed: () {
-                final city = _locationController.text.trim();
-                if (city.isNotEmpty) {
-                  Navigator.push(
-                    context,
-                    MaterialPageRoute(
-                      builder: (context) =>
-                          CityReportsScreen(),
-                    ),
-                  );
-                } else {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(content: Text("Please enter a location")),
-                  );
-                }
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (context) => CityCrimeReportsPage(),
+                  ),
+                );
               },
               child: const Text("Go to Reports"),
             ),

@@ -1,3 +1,5 @@
+// lib/screens/city_reports_screen.dart
+
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'dart:convert';
@@ -11,7 +13,7 @@ class CityReportsScreen extends StatefulWidget {
 
 class _CityReportsScreenState extends State<CityReportsScreen> {
   List<dynamic> reports = [];
-  String statusFilter = 'All';
+  String cityFilter = '';
   bool isLoading = true;
 
   @override
@@ -26,9 +28,8 @@ class _CityReportsScreenState extends State<CityReportsScreen> {
       final response = await http.get(url);
       if (response.statusCode == 200) {
         final decoded = json.decode(response.body);
-        final List<dynamic> allReports = decoded['data'];
         setState(() {
-          reports = allReports;
+          reports = decoded['data'];
           isLoading = false;
         });
       } else {
@@ -42,39 +43,54 @@ class _CityReportsScreenState extends State<CityReportsScreen> {
     }
   }
 
+  Future<void> updateStatus(String id, String newStatus) async {
+    final url = Uri.parse("https://crimereportingsystem-production.up.railway.app/api/admin/report/$id");
+    try {
+      final response = await http.patch(
+        url,
+        headers: {'Content-Type': 'application/json'},
+        body: json.encode({'status': newStatus}),
+      );
+      if (response.statusCode == 200) {
+        print("Status updated successfully");
+      } else {
+        print("Failed to update status");
+      }
+    } catch (e) {
+      print("Error updating status: $e");
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final filteredReports = reports.where((report) {
-      if (statusFilter == 'All') return true;
-      return (report['status'] ?? '').toLowerCase() == statusFilter.toLowerCase();
+      final location = report['location'];
+      final locationStr = location is String
+          ? location
+          : (location?['address'] ?? location.toString());
+      return cityFilter.isEmpty ||
+          locationStr.toLowerCase().contains(cityFilter.toLowerCase());
     }).toList();
 
     return Scaffold(
-      appBar: AppBar(title: Text("All Crime Reports")),
+      appBar: AppBar(title: const Text("All City Reports")),
       body: isLoading
           ? const Center(child: CircularProgressIndicator())
           : Column(
               children: [
                 Padding(
                   padding: const EdgeInsets.all(10),
-                  child: DropdownButtonFormField<String>(
-                    decoration: InputDecoration(
-                      labelText: 'Filter by Status',
+                  child: TextField(
+                    decoration: const InputDecoration(
+                      labelText: 'Search by city',
                       border: OutlineInputBorder(),
-                      prefixIcon: Icon(Icons.filter_alt),
+                      prefixIcon: Icon(Icons.search),
                     ),
-                    value: statusFilter,
                     onChanged: (value) {
                       setState(() {
-                        statusFilter = value!;
+                        cityFilter = value;
                       });
                     },
-                    items: ['All', 'Pending', 'Closed', 'Investigating']
-                        .map((status) => DropdownMenuItem(
-                              value: status,
-                              child: Text(status),
-                            ))
-                        .toList(),
                   ),
                 ),
                 Expanded(
@@ -84,9 +100,7 @@ class _CityReportsScreenState extends State<CityReportsScreen> {
                           itemCount: filteredReports.length,
                           itemBuilder: (context, index) {
                             final report = filteredReports[index];
-                            final location = report['location'] is String
-                                ? report['location']
-                                : (report['location']?['address'] ?? report['location'].toString());
+                            final status = report['status'] ?? "Pending";
 
                             return Card(
                               margin: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
@@ -96,19 +110,27 @@ class _CityReportsScreenState extends State<CityReportsScreen> {
                                   crossAxisAlignment: CrossAxisAlignment.start,
                                   children: [
                                     Text(report['description'] ?? "No description"),
-                                    SizedBox(height: 4),
-                                    Text("Location: $location"),
+                                    const SizedBox(height: 8),
+                                    const Text("Update Status:"),
+                                    DropdownButton<String>(
+                                      value: status,
+                                      onChanged: (String? newValue) {
+                                        if (newValue != null) {
+                                          setState(() {
+                                            report['status'] = newValue;
+                                          });
+                                          updateStatus(report['_id'], newValue);
+                                        }
+                                      },
+                                      items: <String>['Pending', 'Investigating', 'Closed']
+                                          .map<DropdownMenuItem<String>>((String value) {
+                                        return DropdownMenuItem<String>(
+                                          value: value,
+                                          child: Text(value),
+                                        );
+                                      }).toList(),
+                                    ),
                                   ],
-                                ),
-                                trailing: Text(
-                                  report['status'] ?? "Pending",
-                                  style: TextStyle(
-                                    color: (report['status'] ?? '').toLowerCase() == 'resolved'
-                                        ? Colors.green
-                                        : (report['status'] ?? '').toLowerCase() == 'investigating'
-                                            ? Colors.orange
-                                            : Colors.red,
-                                  ),
                                 ),
                               ),
                             );
