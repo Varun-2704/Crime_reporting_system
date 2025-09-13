@@ -72,7 +72,7 @@ Future<void> _openMapPicker(BuildContext context) async {
 
     _formKey.currentState!.save();
 
-    final uri = Uri.parse("https://crimereportingsystem-production.up.railway.app/api/crime/report");
+    final uri = Uri.parse("https://crime-reporting-system-c6aw.onrender.com/api/crime/report");
     final request = http.MultipartRequest('POST', uri);
 
     request.fields['type'] = selectedCrime!;

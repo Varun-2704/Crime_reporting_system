@@ -57,7 +57,7 @@ class _CrimeHeatMapScreenState extends State<CrimeHeatMapScreen> {
       appBar: AppBar(title: const Text("Crime Heat Map")),
       body: FlutterMap(
         options: MapOptions(
-          center: heatPoints.isNotEmpty ? heatPoints[0] : LatLng(21.25, 81.63),
+          center: heatPoints.isNotEmpty ? heatPoints[0] : LatLng(12.9716, 77.5946),
           zoom: 12,
         ),
         children: [
